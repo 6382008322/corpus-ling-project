@@ -1,4 +1,4 @@
-import os, re, random, json
+import os, re, random, json, nltk
 import xml.etree.ElementTree as ET
 import pandas as pd
 from tqdm import tqdm
@@ -47,6 +47,22 @@ def create_corpus_word_pt():
 
     with open(f'corpus/{corpus}/corpus_word.txt', 'w') as f:
         f.write('\n\n'.join(corpus_words))
+
+def clean_corpus_word(corpus, language):
+    with open(f'corpus/{corpus}/corpus_word.txt') as f:
+        lines = f.read().split('\n\n')
+    newlines = []
+    for line in lines:
+        if language == 'th':
+            tokens = [t for t in line.split() if re.match('^[ก-์]+$', t)]   
+        elif language == 'en':
+            tokens = [t for t in line.split() if re.match('^[a-zA-Z]+$', t)]   
+        elif language == 'cn':
+            tokens = [t for t in line.split() if re.match('^[\u4e00-\u9fa5]+$', t)]   
+        if tokens != []:
+            newlines.append(' '.join(tokens))
+    with open(f'corpus/{corpus}/corpus_word.txt', 'w') as f:
+        f.write('\n\n'.join(newlines))
 
 def create_corpus_word_wn():
     '''
@@ -204,7 +220,7 @@ def merge_tokens(text, top_bigrams):
     
     return merged_text
 
-def create_corpus(corpus, wikicorpus, types):
+def create_corpus_old(corpus, wikicorpus, types):
     '''
     create corpus for collocations
     '''
@@ -213,6 +229,32 @@ def create_corpus(corpus, wikicorpus, types):
         corpus_text = ''
         # load bi_to_vocabs
         with open(f'corpus/{wikicorpus}/top_bigrams_{type_}.txt') as f:
+            top_bigrams = f.read().split('\n')
+            
+        # load original text
+        with open(f'corpus/{corpus}/corpus_word.txt') as f:
+            paras = f.read().split('\n\n')
+        
+        # merge tokens
+        for para in tqdm(paras):
+            sents = para.split('\n')
+            for sent in sents:
+                corpus_text += merge_tokens(sent, top_bigrams) + '\n' # merge tokens
+            corpus_text += '\n'
+        
+        # write files
+        with open(f'corpus/{corpus}/corpus_{type_}.txt', 'w') as f:
+            f.write(corpus_text.strip())
+
+def create_corpus(corpus, types):
+    '''
+    create corpus for collocations
+    '''
+    for type_ in types:
+
+        corpus_text = ''
+        # load bi_to_vocabs
+        with open(f'corpus/{corpus}/top_bigrams_{type_}.txt') as f:
             top_bigrams = f.read().split('\n')
             
         # load original text
@@ -267,4 +309,28 @@ def export_doc_tok():
     with open('corpus/doctok.csv', 'w') as f:
         f.write(text)
 
+def create_top_bigrams(corpus, n_bigrams):
+    # get tokens from corpus
+    with open(f'corpus/{corpus}/corpus_word.txt') as f:
+        corpus_ = f.read().split('\n')
+        corpus_ = [l for l in corpus_ if l != '']
+        tokens = [token for line in corpus_ for token in line.split()]
+
+    # find bigrams
+    with time_('bigram'):
+        bigrams = nltk.collocations.BigramAssocMeasures()
+        bigramFinder = nltk.collocations.BigramCollocationFinder.from_words(tokens)
+
+    for type_ in ['freq', 't', 'chi']:
+        with time_(type_):
+            if type_ == 'chi':
+                bigramTable = bigramFinder.score_ngrams(bigrams.chi_sq)
+            elif type_ == 't':
+                bigramTable = bigramFinder.score_ngrams(bigrams.student_t)
+            elif type_ == 'freq':
+                bigramTable = bigramFinder.score_ngrams(bigrams.raw_freq)
+
+            texts = ['\t'.join(bigram) for bigram, _ in bigramTable[:n_bigrams]]
+            with open(f'corpus/{corpus}/top_bigrams_{type_}.txt', 'w') as f:
+                f.write('\n'.join(texts))
 

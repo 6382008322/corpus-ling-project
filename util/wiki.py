@@ -107,7 +107,7 @@ def create_corpus_combind(dir_):
     with open(f'corpus/{dir_}/corpus.txt', 'w') as f:
         f.write(text.strip()) # remove last '\n'
 
-def create_top_bigrams(wikicorpus, n_bigrams):
+def create_top_bigrams_old(wikicorpus, n_bigrams):
     # get tokens from corpus
     with open(f'corpus/{wikicorpus}/corpus.txt') as f:
         corpus = f.read().split('\n')
@@ -131,5 +131,29 @@ def create_top_bigrams(wikicorpus, n_bigrams):
             with open(f'corpus/{wikicorpus}/top_bigrams_{type_}.txt', 'w') as f:
                 f.write('\n'.join(texts))
 
+def create_top_bigrams(corpus, n_bigrams):
+    # get tokens from corpus
+    with open(f'corpus/{corpus}/corpus_word.txt') as f:
+        corpus_ = f.read().split('\n')
+        corpus_ = [l for l in corpus_ if l != '']
+        tokens = [token for line in corpus_ for token in line.split()]
+
+    # find bigrams
+    with time_('bigram'):
+        bigrams = nltk.collocations.BigramAssocMeasures()
+        bigramFinder = nltk.collocations.BigramCollocationFinder.from_words(tokens)
+
+    for type_ in ['freq', 't', 'chi']:
+        with time_(type_):
+            if type_ == 'chi':
+                bigramTable = bigramFinder.score_ngrams(bigrams.chi_sq)
+            elif type_ == 't':
+                bigramTable = bigramFinder.score_ngrams(bigrams.student_t)
+            elif type_ == 'freq':
+                bigramTable = bigramFinder.score_ngrams(bigrams.raw_freq)
+
+            texts = ['\t'.join(bigram) for bigram, _ in bigramTable[:n_bigrams]]
+            with open(f'corpus/{corpus}/top_bigrams_{type_}.txt', 'w') as f:
+                f.write('\n'.join(texts))
 
 
