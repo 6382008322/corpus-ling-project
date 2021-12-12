@@ -48,22 +48,6 @@ def create_corpus_word_pt():
     with open(f'corpus/{corpus}/corpus_word.txt', 'w') as f:
         f.write('\n\n'.join(corpus_words))
 
-def clean_corpus_word(corpus, language):
-    with open(f'corpus/{corpus}/corpus_word.txt') as f:
-        lines = f.read().split('\n\n')
-    newlines = []
-    for line in lines:
-        if language == 'th':
-            tokens = [t for t in line.split() if re.match('^[ก-์]+$', t)]   
-        elif language == 'en':
-            tokens = [t for t in line.split() if re.match('^[a-zA-Z]+$', t)]   
-        elif language == 'cn':
-            tokens = [t for t in line.split() if re.match('^[\u4e00-\u9fa5]+$', t)]   
-        if tokens != []:
-            newlines.append(' '.join(tokens))
-    with open(f'corpus/{corpus}/corpus_word.txt', 'w') as f:
-        f.write('\n\n'.join(newlines))
-
 def create_corpus_word_wn():
     '''
     prepare corpus_word for wn
